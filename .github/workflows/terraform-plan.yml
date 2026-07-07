@@ -48,7 +48,7 @@ jobs:
 
       - name: Terraform init
         id: init
-        run: terraform init -backend=false
+        run: terraform init -backend-config=backend-${{ matrix.environment }}.tf
         # -backend=false: this workflow only validates/plans, never applies,
         # so there's no need to configure real backend storage in CI.
 
@@ -58,7 +58,7 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: terraform plan -no-color -input=false -backend=false -refresh=false -var-file=${{ matrix.environment }}.tfvars
+        run: terraform plan -no-color -input=false -refresh=false -var-file=${{ matrix.environment }}.tfvars
         continue-on-error: true
         env:
           # Assignment explicitly states actual AWS deployment is not
