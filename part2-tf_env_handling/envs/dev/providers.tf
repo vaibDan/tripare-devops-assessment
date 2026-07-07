@@ -14,9 +14,9 @@ terraform {
   # never collide. In a real team setup, swap this for `backend "s3"` with a
   # per-environment key + a DynamoDB table for state locking — see
   # backend-dev.hcl for what that config would look like.
-  # backend "local" {
-  #   path = "terraform-dev.tfstate"
-  # }
+  backend "local" {
+    path = "terraform-dev.tfstate"
+  }
 }
 
 provider "aws" {

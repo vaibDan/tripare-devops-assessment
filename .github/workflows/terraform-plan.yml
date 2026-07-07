@@ -48,7 +48,7 @@ jobs:
 
       - name: Terraform init
         id: init
-        run: terraform init -backend-config=backend-${{ matrix.environment }}.tf
+        run: terraform init -backend=false 
         # -backend=false: this workflow only validates/plans, never applies,
         # so there's no need to configure real backend storage in CI.
 
