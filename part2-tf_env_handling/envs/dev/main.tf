@@ -32,6 +32,7 @@ module "ecs" {
   task_memory           = var.task_memory
 }
 
+
 module "rds" {
   source = "../../../part1-tf_infra_design/infra/modules/rds"
 
