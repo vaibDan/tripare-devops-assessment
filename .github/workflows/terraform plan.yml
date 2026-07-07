@@ -1,6 +1,7 @@
 name: Terraform Plan
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "part1-tf_infra_design/**"
@@ -15,6 +16,9 @@ jobs:
   terraform:
     name: fmt / init / validate / plan (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write 
 
     strategy:
       fail-fast: false
