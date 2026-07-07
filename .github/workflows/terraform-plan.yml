@@ -58,7 +58,7 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        run: terraform plan -no-color -input=false -refresh=false -var-file=${{ matrix.environment }}.tfvars
+        run: terraform plan -no-color -input=false -backend=false -refresh=false -var-file=${{ matrix.environment }}.tfvars
         continue-on-error: true
         env:
           # Assignment explicitly states actual AWS deployment is not
