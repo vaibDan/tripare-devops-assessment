@@ -1,64 +1,72 @@
-# Part 3 (Optional): Terraform Plan in GitHub Actions
+# Part 2: Terraform Environment Handling
 
-## Where the actual workflow file lives
+Two environments, `dev` and `prod`, both built from the same modules in
+[`../part1-tf_infra_design/modules/`](../part1-tf_infra_design/README.md) —
+zero duplicated resource code. Only the variable *values* differ per
+environment; `main.tf` is structurally identical between `envs/dev` and `envs/prod`.
 
-**`.github/workflows/terraform-plan.yml`** — at the repo root, not in this
-folder. GitHub Actions only discovers workflows in that exact path; it can't
-be relocated into a `part3-...` subfolder. This folder holds the explanation.
+## Structure
 
-## What the workflow does, step by step
+```
+part2-tf_env_handling/
+└── envs/
+    ├── dev/
+    │   ├── main.tf            wires network + alb + ecs + rds modules together
+    │   ├── variables.tf       dev defaults
+    │   ├── providers.tf       backend: terraform-dev.tfstate
+    │   ├── dev.tfvars         explicit dev values
+    │   └── backend-dev.hcl    example S3 backend config (not active — see below)
+    └── prod/
+        └── ... (same files, prod values)
+```
 
-Triggers on any Pull Request that touches Part 1 or Part 2's Terraform code.
-Runs the pipeline **twice per PR** — once for `dev`, once for `prod` — since
-they're separate root modules (see `part2-tf_env_handling/README.md`).
+## What differs between dev and prod, and why
 
-| Step | What it does | Why |
-|---|---|---|
-| `terraform fmt -check -recursive` | Fails if any file isn't formatted per Terraform's standard style | Catches style issues automatically instead of relying on manual review |
-| `terraform init -backend=false` | Downloads the AWS provider, skips configuring real backend storage | This workflow only plans, never applies — no need for real state storage in CI |
-| `terraform validate` | Checks syntax, types, required arguments | Catches typos/misconfigurations before a human ever reads the plan |
-| `terraform plan -var-file=<env>.tfvars` | Shows what *would* be created | The actual deliverable — run with dummy AWS credentials (`AWS_ACCESS_KEY_ID=fake`), since the assignment explicitly states real deployment isn't required |
+| | dev | prod | why |
+|---|---|---|---|
+| VPC CIDR | `10.0.0.0/16` | `10.1.0.0/16` | separate ranges, safe to peer later |
+| Task size | 256 CPU / 512 MB | 512 CPU / 1024 MB | dev doesn't serve real traffic |
+| DB instance | `db.t3.micro` | `db.t3.medium` | cost vs. real load |
+| Backup retention | 1 day | 7 days | prod data isn't disposable |
+| `deletion_protection` | `false` | `true` | blocks an accidental `terraform destroy` on real data |
+| `multi_az` | `false` | `true` | prod needs DB failover; dev doesn't need the 2x cost |
+| State file | `terraform-dev.tfstate` | `terraform-prod.tfstate` | dev/prod state can never collide or overwrite each other |
 
-## How the plan gets shared on the PR
+## Backend state
 
-Posted as a **PR comment**, via `actions/github-script`, one comment per
-environment (`dev` and `prod` separately). Each comment shows a quick
-pass/fail summary table for all four steps, plus the full plan output inside
-a collapsible `<details>` block — visible without leaving the PR page, but
-collapsed by default so it doesn't dominate the PR thread.
+Both environments use `backend "local"` with separate state file names, so this
+repo can be reviewed with `terraform plan` and no live AWS access — this
+assessment explicitly doesn't require real deployment.
 
-## Known issue: workflow reports a failure
+`backend-dev.hcl` / `backend-prod.hcl` document what a real team setup would
+use instead: an S3 backend with a per-environment `key` (`dev/terraform.tfstate`
+vs `prod/terraform.tfstate` in the same bucket) plus a DynamoDB table for state
+locking. Switching to it in a real environment:
+```bash
+# 1. remove the backend "local" block from providers.tf, replace with:
+#      backend "s3" {}
+# 2. create the bucket + DynamoDB table once, out of band
+# 3. terraform init -backend-config=backend-dev.hcl -migrate-state
+```
+This isn't wired up live here on purpose — it would make the submission
+depend on infrastructure only the candidate has access to.
 
-`fmt` / `init` / `validate` / `plan` run against both environments, but the
-workflow's final pass/fail check currently exits with an error in CI that
-doesn't reproduce when running the same Terraform commands locally (both
-`dev` and `prod` plan cleanly on my machine — see Part 1/2 READMEs).
+## How to run
 
-I wasn't able to isolate the exact CI-vs-local difference before the
-submission deadline. Given Part 3 is explicitly marked optional in the
-assignment, I prioritized finishing and verifying the required parts (1, 2,
-4, 5, 6) instead of continuing to debug this. Happy to dig into the actual
-runner logs together if it's useful context for the technical round.
+```bash
+cd envs/dev   # or envs/prod
 
-## Design choices worth being able to explain
+export AWS_ACCESS_KEY_ID=fake
+export AWS_SECRET_ACCESS_KEY=fake
 
-- **`continue-on-error: true` on `fmt` and `plan`, but not `init`/`validate`**
-  — if `init` or `validate` fails, there's nothing meaningful to show in a
-  comment (the config is broken), so the job should just fail normally. But
-  `fmt`/`plan` failing is still useful information worth *posting*, so the
-  workflow captures the outcome, posts it, and only fails the job afterward
-  in a final explicit step.
-- **`concurrency` group per PR number** — if someone pushes twice quickly,
-  the first run cancels instead of both finishing and posting two
-  overlapping comments.
-- **Dummy AWS credentials, no real secrets used** — consistent with Part
-  1/2's local `terraform plan` setup (`skip_credentials_validation` etc. in
-  `providers.tf`); this workflow never touches a real AWS account.
+terraform fmt -recursive
+terraform init
+terraform validate
+terraform plan -var-file=dev.tfvars -refresh=false    # or prod.tfvars in envs/prod
+```
 
-## What I'd change for a real production setup (not needed here)
+Both should report `Plan: 28 to add, 0 to change, 0 to destroy`.
 
-- Real AWS credentials via GitHub OIDC (no long-lived secrets), scoped to a
-  read-only plan role.
-- A real S3 + DynamoDB backend (see `backend-dev.hcl`/`backend-prod.hcl` in
-  Part 2) instead of `-backend=false`, so plan reflects real existing state.
-- Branch protection requiring this workflow to pass before merge.
+This is also the way to verify Part 1's modules are correct — see
+[Part 1's README](../part1-tf_infra_design/README.md#how-to-verify-part-1-actually-works)
+for why module correctness is proven here rather than in Part 1 directly.

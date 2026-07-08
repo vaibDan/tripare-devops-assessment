@@ -27,6 +27,20 @@ pass/fail summary table for all four steps, plus the full plan output inside
 a collapsible `<details>` block — visible without leaving the PR page, but
 collapsed by default so it doesn't dominate the PR thread.
 
+
+## Known issue: workflow reports a failure
+
+`fmt` / `init` / `validate` / `plan` run against both environments, but the
+workflow's final pass/fail check currently exits with an error in CI that
+doesn't reproduce when running the same Terraform commands locally (both
+`dev` and `prod` plan cleanly on my machine — see Part 1/2 READMEs).
+
+I wasn't able to isolate the exact CI-vs-local difference before the
+submission deadline. Given Part 3 is explicitly marked optional in the
+assignment, I prioritized finishing and verifying the required parts (1, 2,
+4, 5, 6) instead of continuing to debug this. Happy to dig into the actual
+runner logs together if it's useful context for the technical round.
+
 ## Design choices worth being able to explain
 
 - **`continue-on-error: true` on `fmt` and `plan`, but not `init`/`validate`**
