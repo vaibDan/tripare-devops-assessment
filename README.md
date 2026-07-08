@@ -61,13 +61,7 @@ cd ../part6-backup_and_restore
 
 ## Known limitation
 
-Part 3's GitHub Actions workflow correctly runs `fmt`/`init`/`validate`/`plan`
-on every PR, but the final "post plan as PR comment" step fails due to a
-`GITHUB_TOKEN` permissions issue rather than a Terraform problem — Part 3 is
-explicitly marked optional in the assignment, and I chose not to spend
-further time on CI permissions debugging given the submission deadline. The
-intended design (and the fix — granting the workflow explicit
-`pull-requests: write` permission) is documented in
+Part 3's fmt/init/validate/plan steps run, but the workflow's final pass/fail check currently reports a failure in CI (exit code 1) that doesn't reproduce when running the same commands locally. Not resolved given the assessment deadline — Part 3 is explicitly optional.
 [`part3-tf_plan_github/README.md`](part3-tf_plan_github/README.md).
 
 ## Submission checklist (from the assignment)
